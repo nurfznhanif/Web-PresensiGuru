@@ -10,5 +10,5 @@ Route::get('/user', function (Request $request) {
 
 // API routes yang memerlukan autentikasi
 Route::middleware('auth:sanctum')->group(function () {
-    Route::apiResource('gurus', GuruController::class)->only(['index', 'store']);
+    Route::apiResource('gurus', GuruController::class);
 });

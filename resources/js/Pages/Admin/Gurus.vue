@@ -7,16 +7,16 @@
             <div class="flex justify-between items-center mb-6">
               <h1 class="text-2xl font-bold text-gray-900">Data Guru</h1>
               <button
-                @click="showAddForm = true"
+                @click="openAddForm"
                 class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded"
               >
                 Tambah Guru
               </button>
             </div>
 
-            <!-- Add Guru Modal -->
+            <!-- Modal Form -->
             <div
-              v-if="showAddForm"
+              v-if="showForm"
               class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50"
             >
               <div
@@ -24,7 +24,7 @@
               >
                 <div class="mt-3">
                   <h3 class="text-lg font-bold text-gray-900 mb-4">
-                    Tambah Guru Baru
+                    {{ editMode ? "Edit Guru" : "Tambah Guru Baru" }}
                   </h3>
                   <form @submit.prevent="submitForm">
                     <div class="mb-4">
@@ -85,13 +85,18 @@
                     </div>
 
                     <div class="mb-6">
-                      <label class="block text-gray-700 text-sm font-bold mb-2"
-                        >Password</label
-                      >
+                      <label class="block text-gray-700 text-sm font-bold mb-2">
+                        Password
+                        {{
+                          editMode
+                            ? "(Kosongkan jika tidak ingin mengubah)"
+                            : ""
+                        }}
+                      </label>
                       <input
                         v-model="form.password"
                         type="password"
-                        required
+                        :required="!editMode"
                         class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                         :class="{ 'border-red-500': formErrors.password }"
                       />
@@ -124,6 +129,46 @@
               </div>
             </div>
 
+            <!-- Confirmation Modal -->
+            <div
+              v-if="showDeleteConfirm"
+              class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50"
+            >
+              <div
+                class="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white"
+              >
+                <div class="mt-3 text-center">
+                  <h3 class="text-lg font-bold text-gray-900 mb-4">
+                    Konfirmasi Hapus
+                  </h3>
+                  <p class="text-gray-600 mb-6">
+                    Apakah Anda yakin ingin menghapus guru
+                    <strong>{{ deleteTarget?.name }}</strong
+                    >?
+                    <br />
+                    <span class="text-red-600 text-sm"
+                      >Data presensi guru ini juga akan ikut terhapus!</span
+                    >
+                  </p>
+                  <div class="flex justify-center space-x-2">
+                    <button
+                      @click="showDeleteConfirm = false"
+                      class="bg-gray-500 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded"
+                    >
+                      Batal
+                    </button>
+                    <button
+                      @click="confirmDelete"
+                      :disabled="isDeleting"
+                      class="bg-red-500 hover:bg-red-700 text-white font-bold py-2 px-4 rounded disabled:opacity-50"
+                    >
+                      {{ isDeleting ? "Menghapus..." : "Hapus" }}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
             <!-- Guru Table -->
             <div class="overflow-x-auto">
               <table class="min-w-full divide-y divide-gray-200">
@@ -147,6 +192,11 @@
                     <th
                       class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
                     >
+                      Tanggal Daftar
+                    </th>
+                    <th
+                      class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                    >
                       Status Presensi Hari Ini
                     </th>
                     <th
@@ -158,6 +208,11 @@
                       class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
                     >
                       Jam Pulang
+                    </th>
+                    <th
+                      class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                    >
+                      Aksi
                     </th>
                   </tr>
                 </thead>
@@ -177,6 +232,11 @@
                       class="px-6 py-4 whitespace-nowrap text-sm text-gray-900"
                     >
                       {{ guru.nip }}
+                    </td>
+                    <td
+                      class="px-6 py-4 whitespace-nowrap text-sm text-gray-900"
+                    >
+                      {{ formatDate(guru.created_at) }}
                     </td>
                     <td class="px-6 py-4 whitespace-nowrap">
                       <span
@@ -205,6 +265,22 @@
                     >
                       {{ guru.presensi_hari_ini?.jam_pulang || "-" }}
                     </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                      <div class="flex space-x-2">
+                        <button
+                          @click="openEditForm(guru)"
+                          class="bg-yellow-500 hover:bg-yellow-700 text-white font-bold py-1 px-3 rounded text-xs"
+                        >
+                          Edit
+                        </button>
+                        <button
+                          @click="openDeleteConfirm(guru)"
+                          class="bg-red-500 hover:bg-red-700 text-white font-bold py-1 px-3 rounded text-xs"
+                        >
+                          Hapus
+                        </button>
+                      </div>
+                    </td>
                   </tr>
                 </tbody>
               </table>
@@ -232,11 +308,16 @@ export default {
   },
   setup() {
     const gurus = ref([]);
-    const showAddForm = ref(false);
+    const showForm = ref(false);
+    const showDeleteConfirm = ref(false);
+    const editMode = ref(false);
     const isSubmitting = ref(false);
+    const isDeleting = ref(false);
     const formErrors = ref({});
+    const deleteTarget = ref(null);
 
     const form = reactive({
+      id: null,
       name: "",
       email: "",
       nip: "",
@@ -252,21 +333,51 @@ export default {
       }
     };
 
+    const openAddForm = () => {
+      editMode.value = false;
+      resetForm();
+      showForm.value = true;
+    };
+
+    const openEditForm = (guru) => {
+      editMode.value = true;
+      form.id = guru.id;
+      form.name = guru.name;
+      form.email = guru.email;
+      form.nip = guru.nip;
+      form.password = "";
+      showForm.value = true;
+    };
+
     const submitForm = async () => {
       isSubmitting.value = true;
       formErrors.value = {};
 
       try {
-        const response = await axios.post("/api/gurus", form);
+        let response;
 
-        // Add new guru to list
-        gurus.value.push(response.data.data);
+        if (editMode.value) {
+          response = await axios.put(`/api/gurus/${form.id}`, form);
+          // Update guru in list
+          const index = gurus.value.findIndex((g) => g.id === form.id);
+          if (index !== -1) {
+            gurus.value[index] = {
+              ...gurus.value[index],
+              ...response.data.data,
+            };
+          }
+        } else {
+          response = await axios.post("/api/gurus", form);
+          // Add new guru to list
+          gurus.value.push(response.data.data);
+        }
 
-        // Reset form and close modal
         closeForm();
-
-        // Show success message (you can use toast or alert)
-        alert("Guru berhasil ditambahkan!");
+        alert(
+          editMode.value
+            ? "Data guru berhasil diperbarui!"
+            : "Guru berhasil ditambahkan!"
+        );
       } catch (error) {
         if (error.response && error.response.status === 422) {
           formErrors.value = error.response.data.errors;
@@ -278,11 +389,49 @@ export default {
       }
     };
 
+    const openDeleteConfirm = (guru) => {
+      deleteTarget.value = guru;
+      showDeleteConfirm.value = true;
+    };
+
+    const confirmDelete = async () => {
+      isDeleting.value = true;
+
+      try {
+        await axios.delete(`/api/gurus/${deleteTarget.value.id}`);
+
+        // Remove guru from list
+        gurus.value = gurus.value.filter((g) => g.id !== deleteTarget.value.id);
+
+        showDeleteConfirm.value = false;
+        deleteTarget.value = null;
+        alert("Data guru berhasil dihapus!");
+      } catch (error) {
+        alert("Terjadi kesalahan saat menghapus data");
+      } finally {
+        isDeleting.value = false;
+      }
+    };
+
     const closeForm = () => {
-      showAddForm.value = false;
+      showForm.value = false;
       formErrors.value = {};
-      Object.keys(form).forEach((key) => {
-        form[key] = "";
+      resetForm();
+    };
+
+    const resetForm = () => {
+      form.id = null;
+      form.name = "";
+      form.email = "";
+      form.nip = "";
+      form.password = "";
+    };
+
+    const formatDate = (dateString) => {
+      return new Date(dateString).toLocaleDateString("id-ID", {
+        year: "numeric",
+        month: "long",
+        day: "numeric",
       });
     };
 
@@ -306,21 +455,29 @@ export default {
       return classMap[status] || "bg-gray-100 text-gray-800";
     };
 
-    // Auto-refresh data every 30 seconds for real-time updates
-    let refreshInterval;
     onMounted(() => {
       fetchGurus();
-      refreshInterval = setInterval(fetchGurus, 30000);
+      // Auto-refresh every 30 seconds
+      setInterval(fetchGurus, 30000);
     });
 
     return {
       gurus,
-      showAddForm,
+      showForm,
+      showDeleteConfirm,
+      editMode,
       isSubmitting,
+      isDeleting,
       formErrors,
+      deleteTarget,
       form,
+      openAddForm,
+      openEditForm,
       submitForm,
+      openDeleteConfirm,
+      confirmDelete,
       closeForm,
+      formatDate,
       formatStatus,
       getStatusClass,
     };

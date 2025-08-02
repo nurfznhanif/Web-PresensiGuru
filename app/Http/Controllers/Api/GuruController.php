@@ -1,4 +1,5 @@
 <?php
+// app/Http/Controllers/Api/GuruController.php (Updated)
 
 namespace App\Http\Controllers\Api;
 
@@ -22,6 +23,7 @@ class GuruController extends Controller
                     'name' => $guru->name,
                     'email' => $guru->email,
                     'nip' => $guru->nip,
+                    'created_at' => $guru->created_at,
                     'presensi_hari_ini' => $guru->presensiHariIni ? [
                         'status_masuk' => $guru->presensiHariIni->status_masuk,
                         'jam_masuk' => $guru->presensiHariIni->jam_masuk,
@@ -62,7 +64,75 @@ class GuruController extends Controller
                 'name' => $guru->name,
                 'email' => $guru->email,
                 'nip' => $guru->nip,
+                'created_at' => $guru->created_at,
             ],
         ], 201);
+    }
+
+    public function show($id)
+    {
+        $guru = User::where('role', 'guru')->findOrFail($id);
+
+        return response()->json([
+            'status' => 'success',
+            'data' => [
+                'id' => $guru->id,
+                'name' => $guru->name,
+                'email' => $guru->email,
+                'nip' => $guru->nip,
+                'created_at' => $guru->created_at,
+            ],
+        ]);
+    }
+
+    public function update(Request $request, $id)
+    {
+        $guru = User::where('role', 'guru')->findOrFail($id);
+
+        $request->validate([
+            'name' => 'required|string|max:255',
+            'email' => ['required', 'email', Rule::unique('users')->ignore($guru->id)],
+            'password' => 'nullable|min:6',
+            'nip' => ['required', 'string', Rule::unique('users')->ignore($guru->id)],
+        ]);
+
+        $updateData = [
+            'name' => $request->name,
+            'email' => $request->email,
+            'nip' => $request->nip,
+        ];
+
+        if ($request->filled('password')) {
+            $updateData['password'] = Hash::make($request->password);
+        }
+
+        $guru->update($updateData);
+
+        return response()->json([
+            'status' => 'success',
+            'message' => 'Data guru berhasil diperbarui',
+            'data' => [
+                'id' => $guru->id,
+                'name' => $guru->name,
+                'email' => $guru->email,
+                'nip' => $guru->nip,
+                'created_at' => $guru->created_at,
+            ],
+        ]);
+    }
+
+    public function destroy($id)
+    {
+        $guru = User::where('role', 'guru')->findOrFail($id);
+
+        // Hapus data presensi terkait
+        Presensi::where('user_id', $guru->id)->delete();
+
+        $guru->delete();
+
+        return response()->json([
+            'status' => 'success',
+            'message' => 'Data guru berhasil dihapus',
+        ]);
     }
 }
