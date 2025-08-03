@@ -1,138 +1,93 @@
 <?php
-// app/Http/Controllers/Api/GuruController.php (Updated)
 
-namespace App\Http\Controllers\Api;
+namespace App\Http\Controllers;
 
-use App\Http\Controllers\Controller;
+use Illuminate\Http\Request;
 use App\Models\User;
 use App\Models\Presensi;
-use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Hash;
-use Illuminate\Validation\Rule;
 
 class GuruController extends Controller
 {
-    public function index()
+    public function apiIndex()
     {
         $gurus = User::where('role', 'guru')
-            ->with(['presensiHariIni'])
-            ->get()
-            ->map(function ($guru) {
-                return [
-                    'id' => $guru->id,
-                    'name' => $guru->name,
-                    'email' => $guru->email,
-                    'nip' => $guru->nip,
-                    'created_at' => $guru->created_at,
-                    'presensi_hari_ini' => $guru->presensiHariIni ? [
-                        'status_masuk' => $guru->presensiHariIni->status_masuk,
-                        'jam_masuk' => $guru->presensiHariIni->jam_masuk,
-                        'jam_pulang' => $guru->presensiHariIni->jam_pulang,
-                        'status_pulang' => $guru->presensiHariIni->status_pulang,
-                    ] : null,
-                ];
-            });
+            ->with(['presensi' => function ($query) {
+                $query->whereDate('tanggal', today());
+            }])
+            ->get();
+
+        // Transform data untuk frontend
+        $gurus = $gurus->map(function ($guru) {
+            $guru->presensi_hari_ini = $guru->presensi->first();
+            unset($guru->presensi);
+            return $guru;
+        });
 
         return response()->json([
-            'status' => 'success',
-            'data' => $gurus,
+            'success' => true,
+            'data' => $gurus
         ]);
     }
 
     public function store(Request $request)
     {
-        $request->validate([
+        $validated = $request->validate([
             'name' => 'required|string|max:255',
             'email' => 'required|email|unique:users,email',
-            'password' => 'required|min:6',
             'nip' => 'required|string|unique:users,nip',
+            'password' => 'required|string|min:8',
         ]);
 
-        $guru = User::create([
-            'name' => $request->name,
-            'email' => $request->email,
-            'password' => Hash::make($request->password),
-            'role' => 'guru',
-            'nip' => $request->nip,
-        ]);
+        $validated['password'] = bcrypt($validated['password']);
+        $validated['role'] = 'guru';
+
+        $guru = User::create($validated);
 
         return response()->json([
-            'status' => 'success',
-            'message' => 'Guru berhasil ditambahkan',
-            'data' => [
-                'id' => $guru->id,
-                'name' => $guru->name,
-                'email' => $guru->email,
-                'nip' => $guru->nip,
-                'created_at' => $guru->created_at,
-            ],
-        ], 201);
-    }
-
-    public function show($id)
-    {
-        $guru = User::where('role', 'guru')->findOrFail($id);
-
-        return response()->json([
-            'status' => 'success',
-            'data' => [
-                'id' => $guru->id,
-                'name' => $guru->name,
-                'email' => $guru->email,
-                'nip' => $guru->nip,
-                'created_at' => $guru->created_at,
-            ],
+            'success' => true,
+            'data' => $guru,
+            'message' => 'Guru berhasil ditambahkan'
         ]);
     }
 
     public function update(Request $request, $id)
     {
-        $guru = User::where('role', 'guru')->findOrFail($id);
+        $guru = User::findOrFail($id);
 
-        $request->validate([
+        $validated = $request->validate([
             'name' => 'required|string|max:255',
-            'email' => ['required', 'email', Rule::unique('users')->ignore($guru->id)],
-            'password' => 'nullable|min:6',
-            'nip' => ['required', 'string', Rule::unique('users')->ignore($guru->id)],
+            'email' => 'required|email|unique:users,email,' . $id,
+            'nip' => 'required|string|unique:users,nip,' . $id,
+            'password' => 'nullable|string|min:8',
         ]);
 
-        $updateData = [
-            'name' => $request->name,
-            'email' => $request->email,
-            'nip' => $request->nip,
-        ];
-
-        if ($request->filled('password')) {
-            $updateData['password'] = Hash::make($request->password);
+        if (!empty($validated['password'])) {
+            $validated['password'] = bcrypt($validated['password']);
+        } else {
+            unset($validated['password']);
         }
 
-        $guru->update($updateData);
+        $guru->update($validated);
 
         return response()->json([
-            'status' => 'success',
-            'message' => 'Data guru berhasil diperbarui',
-            'data' => [
-                'id' => $guru->id,
-                'name' => $guru->name,
-                'email' => $guru->email,
-                'nip' => $guru->nip,
-                'created_at' => $guru->created_at,
-            ],
+            'success' => true,
+            'data' => $guru,
+            'message' => 'Data guru berhasil diperbarui'
         ]);
     }
 
     public function destroy($id)
     {
-        $guru = User::where('role', 'guru')->findOrFail($id);
+        $guru = User::findOrFail($id);
 
         // Hapus data presensi terkait
-        Presensi::where('user_id', $guru->id)->delete();
+        Presensi::where('user_id', $id)->delete();
 
         $guru->delete();
 
         return response()->json([
-            'status' => 'success',
-            'message' => 'Data guru berhasil dihapus',
+            'success' => true,
+            'message' => 'Data guru berhasil dihapus'
         ]);
     }
 }

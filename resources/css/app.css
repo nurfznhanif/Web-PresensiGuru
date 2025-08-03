@@ -1,26 +1,66 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import 'tailwindcss';
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
 
-// package.json
-{
-    "private": true,
-    "scripts": {
-        "build": "vite build",
-        "dev": "vite dev"
-    },
-    "devDependencies": {
-        "@tailwindcss/forms": "^0.5.2",
-        "@vitejs/plugin-vue": "^4.0.0",
-        "autoprefixer": "^10.4.12",
-        "axios": "^1.1.2",
-        "laravel-vite-plugin": "^0.7.2",
-        "postcss": "^8.4.18",
-        "tailwindcss": "^3.2.1",
-        "vite": "^4.0.0"
-    },
-    "dependencies": {
-        "@inertiajs/vue3": "^1.0.0",
-        "vue": "^3.2.31"
-    }
+/* Custom animations untuk background floating elements */
+@keyframes float {
+  0%, 100% {
+    transform: translateY(0px) translateX(0px) rotate(0deg);
+  }
+  33% {
+    transform: translateY(-20px) translateX(10px) rotate(1deg);
+  }
+  66% {
+    transform: translateY(10px) translateX(-10px) rotate(-1deg);
+  }
+}
+
+@keyframes float-delayed {
+  0%, 100% {
+    transform: translateY(0px) translateX(0px) rotate(0deg);
+  }
+  33% {
+    transform: translateY(15px) translateX(-15px) rotate(-1deg);
+  }
+  66% {
+    transform: translateY(-10px) translateX(15px) rotate(1deg);
+  }
+}
+
+@keyframes slide-in-right {
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+/* Utility classes untuk animasi */
+.animate-float {
+  animation: float 6s ease-in-out infinite;
+}
+
+.animate-float-delayed {
+  animation: float-delayed 8s ease-in-out infinite;
+}
+
+.animate-slide-in-right {
+  animation: slide-in-right 0.3s ease-out;
+}
+
+/* Loading spinner untuk button */
+.loading-spinner {
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-radius: 50%;
+  border-top-color: white;
+  animation: spin 1s ease-in-out infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
 }

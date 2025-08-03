@@ -6,7 +6,8 @@ import { createInertiaApp } from "@inertiajs/vue3";
 import { resolvePageComponent } from "laravel-vite-plugin/inertia-helpers";
 
 const appName =
-    window.document.getElementsByTagName("title")[0]?.innerText || "Laravel";
+    window.document.getElementsByTagName("title")[0]?.innerText ||
+    "SD 003 YKWI PEKANBARU";
 
 createInertiaApp({
     title: (title) => `${title} - ${appName}`,
@@ -21,6 +22,6 @@ createInertiaApp({
             .mount(el);
     },
     progress: {
-        color: "#4B5563",
+        color: "#3B82F6", // Blue-500 color
     },
 });

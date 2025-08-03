@@ -13,9 +13,9 @@ class User extends Authenticatable
     protected $fillable = [
         'name',
         'email',
+        'nip',
         'password',
         'role',
-        'nip',
     ];
 
     protected $hidden = [
@@ -25,16 +25,10 @@ class User extends Authenticatable
 
     protected $casts = [
         'email_verified_at' => 'datetime',
-        'password' => 'hashed',
     ];
 
     public function presensi()
     {
         return $this->hasMany(Presensi::class);
-    }
-
-    public function presensiHariIni()
-    {
-        return $this->hasOne(Presensi::class)->whereDate('tanggal', today());
     }
 }
